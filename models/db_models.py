@@ -85,6 +85,7 @@ class Items(Base, CreateDateMixin):
     category: Mapped['Category'] = relationship('Category', back_populates='items')
     measure_unit: Mapped['MeasureUnit'] = relationship('MeasureUnit', back_populates='items')
     plan: Mapped[list['Plan']] = relationship('Plan', back_populates='items')
+    tz_examples: Mapped[list['TzExample']] = relationship(back_populates='item')
 
 
 class Period(Base, CreateDateMixin):
@@ -147,3 +148,20 @@ class UserBranch(Base, CreateDateMixin):
     user: Mapped['User'] = relationship(back_populates='branches')
     branch: Mapped['Branch'] = relationship(back_populates='users')
 
+
+class FileStorage(Base, CreateDateMixin):
+    __tablename__ = 'file_storage'
+
+    name: Mapped[str] = mapped_column(String(250), nullable=False)
+    tz_examples: Mapped[list['TzExample']] = relationship('tz_example.id', back_populates='file')
+
+
+class TzExample(Base, CreateDateMixin):
+    __tablename__ = 'tz_example'
+
+    item_id: Mapped[int] = mapped_column(ForeignKey('item.id', ondelete='SET NULL'))
+    text: Mapped[str] = mapped_column(String(10000), nullable=True)
+    file_id: Mapped[int] = mapped_column(ForeignKey('file_storage.id', ondelete='SET NULL'))
+
+    item: Mapped['Items'] = relationship('item.id', back_populates='tz_example')
+    file:Mapped['FileStorage'] = relationship('file_storage.id', back_populates='tz_examples')
