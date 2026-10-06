@@ -63,6 +63,7 @@ class Branch(Base):
     is_main: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     plan: Mapped[list['Plan']] = relationship('Plan', back_populates='branch')
+    users: Mapped[list['UserBranch']] = relationship(back_populates='branch')
 
 
 class FileStore(Base, CreateDateMixin):
@@ -125,7 +126,9 @@ class User(Base, CreateDateMixin):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     patronymic: Mapped[str] = mapped_column(String(100), nullable=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
     departments: Mapped[list['UserDepartment']] = relationship(back_populates='user')
+    branches: Mapped[list['UserBranch']] = relationship(back_populates='user')
 
 class UserDepartment(Base, CreateDateMixin):
     __tablename__ = 'user_department'
@@ -135,3 +138,12 @@ class UserDepartment(Base, CreateDateMixin):
 
     user: Mapped['User'] = relationship(back_populates='departments')
     department: Mapped['Department'] = relationship(back_populates='users')
+
+class UserBranch(Base, CreateDateMixin):
+    __tablename__ = 'user_branch'
+    user_id: Mapped[int] = mapped_column(ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
+    branch_id: Mapped[int] = mapped_column(ForeignKey('branch.id', ondelete='CASCADE'), primary_key=True)
+
+    user: Mapped['User'] = relationship(back_populates='branches')
+    branch: Mapped['Branch'] = relationship(back_populates='users')
+
