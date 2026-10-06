@@ -1,13 +1,18 @@
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import Integer, String, DateTime, ForeignKey, Boolean, Float
-from datetime import datetime
+from sqlalchemy.ext.declarative import declarative_base
+from datetime import datetime, timezone
 
 class Base(DeclarativeBase):
     __abstract__ = True
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-class MeasureUnit(Base):
+class CreateDateMixin(object):
+
+    create_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.now(timezone.utc))
+
+class MeasureUnit(Base, CreateDateMixin):
     __tablename__ = 'measure_unit'
     name: Mapped[str] = mapped_column(String(250), nullable=False)
     short_name: Mapped[str] = mapped_column(String(50), nullable=True)
@@ -39,3 +44,15 @@ class Category(Base):
 
     def __repr__(self) -> str:
         return f"<Category id={self.id} name={self.name!r} parent_id={self.parent_id}>"
+
+class Branch(Base):
+    __tablename__ = 'branch'
+
+    name: Mapped[str] = mapped_column(String(1000), nullable=False)
+    short_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    is_main: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+class FileStore(Base, CreateDateMixin):
+    __tablename__ = 'file_store'
+
+    name: Mapped[str] = mapped_column(String(500), nullable=False)
