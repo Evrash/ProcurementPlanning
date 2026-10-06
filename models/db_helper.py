@@ -31,7 +31,7 @@ class DatabaseHelper:
             finally:
                 await session.close()
 
-db_helper = DatabaseHelper(db_url=settings.DATABASE_URL)
+db_helper = DatabaseHelper(db_url=settings.db.url)
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async for session  in db_helper.session_getter():
