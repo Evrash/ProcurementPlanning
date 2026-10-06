@@ -24,14 +24,15 @@ class MeasureUnit(Base, CreateDateMixin):
     items: Mapped[list['Items']] = relationship('Items', back_populates='measure_unit')
 
 
-class Department(Base):
+class Department(Base, CreateDateMixin):
     __tablename__ = 'department'
     name: Mapped[str] = mapped_column(String(250), nullable=False)
     short_name: Mapped[str] = mapped_column(String(50), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    users: Mapped[list['UserDepartment']] = relationship(back_populates='department')
 
 
-class Category(Base):
+class Category(Base, CreateDateMixin):
     __tablename__ = 'category'
     name: Mapped[str] = mapped_column(String(250), nullable=False)
     sort: Mapped[Float] = mapped_column(Float, nullable=False)
@@ -106,3 +107,31 @@ class Plan(Base, CreateDateMixin):
     branch: Mapped['Branch'] = relationship('Branch', back_populates='plan')
     items: Mapped['Items'] = relationship('Items', back_populates='plan')
     period: Mapped['Period'] = relationship('Period', back_populates='plan')
+
+
+class PlanModHistory(Base, CreateDateMixin):
+    __tablename__ = 'plan_mod_history'
+
+    plan_id: Mapped[int] = mapped_column(ForeignKey('plan.id', ondelete='CASCADE'), nullable=False)
+    prev_quantity: Mapped[DECIMAL] = mapped_column(DECIMAL(10,4), nullable=False)
+
+
+class User(Base, CreateDateMixin):
+    __tablename__ = 'user'
+
+    login: Mapped[str] = mapped_column(String(100), nullable=False)
+    password: Mapped[str] = mapped_column(String(100), nullable=False)
+    surname: Mapped[str] = mapped_column(String(150), nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    patronymic: Mapped[str] = mapped_column(String(100), nullable=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    departments: Mapped[list['UserDepartment']] = relationship(back_populates='user')
+
+class UserDepartment(Base, CreateDateMixin):
+    __tablename__ = 'user_department'
+
+    user_id: Mapped[int] = mapped_column(ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
+    department_id: Mapped[int] = mapped_column(ForeignKey('department.id', ondelete='CASCADE'), primary_key=True)
+
+    user: Mapped['User'] = relationship(back_populates='departments')
+    department: Mapped['Department'] = relationship(back_populates='users')
