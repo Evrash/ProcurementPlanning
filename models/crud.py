@@ -1,7 +1,9 @@
 from sqlalchemy import select, insert, update, delete
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from models import db_helper, MeasureUnit, Department, Category, Items, Plan, Period
+from schemas.measure_unit import MeasureUnitCreate
 
 async def set_category(name:str) -> Category | None:
     async with db_helper.session_factory() as conn:
@@ -76,9 +78,12 @@ async def get_departments() -> list[Department]:
         result = await conn.execute(query)
         return result.scalars().all()
 
-async def get_measure_units() -> list[MeasureUnit]:
+async def get_measure_units(is_active: bool | None = None) -> list[MeasureUnit]:
     async with db_helper.session_factory() as conn:
-        query = select(MeasureUnit).order_by(MeasureUnit.name)
+        if is_active is not None:
+            query = select(MeasureUnit).where(MeasureUnit.is_active == is_active).order_by(MeasureUnit.name)
+        else:
+            query = select(MeasureUnit).order_by(MeasureUnit.name)
         result = await conn.execute(query)
         return result.scalars().all()
 
@@ -90,6 +95,12 @@ async def set_measure_unit(name: str, short_name: str) -> MeasureUnit | None:
         conn.add(measure_unit)
         await conn.commit()
         return measure_unit
+
+async def get_measure_units2(session: AsyncSession) -> list[MeasureUnit]:
+    stmt = select(MeasureUnit).order_by(MeasureUnit.name)
+    result = await session.execute(stmt)
+    products = result.scalars().all()
+    return list(products)
 
 # async def get_departments() -> list[Department]:
 #     async with db_helper.session_factory() as session:
