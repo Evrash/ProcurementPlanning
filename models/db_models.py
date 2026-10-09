@@ -1,7 +1,5 @@
-from more_itertools.more import map_except
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy import Integer, String, DateTime, ForeignKey, Boolean, Float, DECIMAL
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import String, DateTime, ForeignKey, Boolean, Float, DECIMAL
 from datetime import datetime, timezone
 
 class Base(DeclarativeBase):
@@ -12,47 +10,59 @@ class Base(DeclarativeBase):
 
 class CreateDateMixin(object):
 
-    create_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.now(timezone.utc))
+    create_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=datetime.now(timezone.utc))
 
 
 class MeasureUnit(Base, CreateDateMixin):
     __tablename__ = 'measure_unit'
+
     name: Mapped[str] = mapped_column(String(250), nullable=False)
     short_name: Mapped[str] = mapped_column(String(50), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
-    items: Mapped[list['Items']] = relationship('Items', back_populates='measure_unit')
+    items: Mapped[list['Items']] = relationship('Items', back_populates='measure_unit', foreign_keys='Items.measure_unit_id')
 
 
 class Department(Base, CreateDateMixin):
     __tablename__ = 'department'
+
     name: Mapped[str] = mapped_column(String(250), nullable=False)
     short_name: Mapped[str] = mapped_column(String(50), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
     users: Mapped[list['UserDepartment']] = relationship(back_populates='department')
 
 
 class Category(Base, CreateDateMixin):
     __tablename__ = 'category'
     name: Mapped[str] = mapped_column(String(250), nullable=False)
+    path: Mapped[str] = mapped_column(String(1024), nullable=False, index=True)
     sort: Mapped[Float] = mapped_column(Float, nullable=False)
-    parent_id:Mapped[int] = mapped_column(ForeignKey('category.id', ondelete='SET NULL'), nullable=True)
-    children: Mapped[list['Category']] = relationship(
-        'category',
-        back_populates='parent',
-        cascade='all, delete-orphan',
-        lazy='joined',
+
+    @property
+    def parent_path(self) -> str:
+        return self.path.rsplit('/', 1)[0] + '/' if '/' in self.path else '/'
+    # parent_id:Mapped[int] = mapped_column(ForeignKey('category.id', ondelete='SET NULL'), nullable=True)
+    # children: Mapped[list['Category']] = relationship(
+    #     'Category',
+    #     back_populates='parent',
+    #     cascade='all, delete-orphan',
+    #     lazy='joined'
+    # )
+    # parent: Mapped['Category'] = relationship(
+    #     'Category',
+    #     back_populates='children',
+    #     remote_side='Category.id',
+    #     lazy='joined'
+    # )
+    items: Mapped[list['Items']] = relationship(
+        'Items',
+        back_populates='category',
+        foreign_keys=lambda: Items.category_id
     )
-    parent: Mapped['Category'] = relationship(
-        'category',
-        back_populates='children',
-        remote_side='category.id',
-        lazy='joined',
-    )
-    items: Mapped[list['Items']] = relationship('Items', back_populates='category')
 
     def __repr__(self) -> str:
-        return f"<Category id={self.id} name={self.name!r} parent_id={self.parent_id}>"
+        return f"<Category id={self.id} name={self.name!r} parent_id={self.path}>"
 
 
 class Branch(Base):
@@ -66,12 +76,6 @@ class Branch(Base):
     users: Mapped[list['UserBranch']] = relationship(back_populates='branch')
 
 
-class FileStore(Base, CreateDateMixin):
-    __tablename__ = 'file_store'
-
-    name: Mapped[str] = mapped_column(String(500), nullable=False)
-
-
 class Items(Base, CreateDateMixin):
     __tablename__ = 'item'
 
@@ -82,8 +86,8 @@ class Items(Base, CreateDateMixin):
     transform_ratio: Mapped[DECIMAL] = mapped_column(DECIMAL(10,4), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
-    category: Mapped['Category'] = relationship('Category', back_populates='items')
-    measure_unit: Mapped['MeasureUnit'] = relationship('MeasureUnit', back_populates='items')
+    category: Mapped['Category'] = relationship('Category', back_populates='items', foreign_keys=lambda: Items.category_id)
+    measure_unit: Mapped['MeasureUnit'] = relationship('MeasureUnit', back_populates='items', foreign_keys='Items.measure_unit_id')
     plan: Mapped[list['Plan']] = relationship('Plan', back_populates='items')
     tz_examples: Mapped[list['TzExample']] = relationship(back_populates='item')
 
@@ -100,6 +104,7 @@ class Period(Base, CreateDateMixin):
 
 class Plan(Base, CreateDateMixin):
     __tablename__ = 'plan'
+
     branch_id: Mapped[int] = mapped_column(ForeignKey('branch.id', ondelete='CASCADE'), nullable=False)
     item_id: Mapped[int] = mapped_column(ForeignKey('item.id', ondelete='CASCADE'), nullable=False)
     period_id: Mapped[int] = mapped_column(ForeignKey('period.id', ondelete='CASCADE'), nullable=False)
@@ -109,6 +114,7 @@ class Plan(Base, CreateDateMixin):
     branch: Mapped['Branch'] = relationship('Branch', back_populates='plan')
     items: Mapped['Items'] = relationship('Items', back_populates='plan')
     period: Mapped['Period'] = relationship('Period', back_populates='plan')
+    plan_history: Mapped[list['PlanModHistory']] = relationship('PlanModHistory', back_populates='plans')
 
 
 class PlanModHistory(Base, CreateDateMixin):
@@ -117,6 +123,7 @@ class PlanModHistory(Base, CreateDateMixin):
     plan_id: Mapped[int] = mapped_column(ForeignKey('plan.id', ondelete='CASCADE'), nullable=False)
     prev_quantity: Mapped[DECIMAL] = mapped_column(DECIMAL(10,4), nullable=False)
 
+    plans: Mapped[Plan] = relationship('Plan', back_populates='plan_history')
 
 class User(Base, CreateDateMixin):
     __tablename__ = 'user'
@@ -130,6 +137,7 @@ class User(Base, CreateDateMixin):
 
     departments: Mapped[list['UserDepartment']] = relationship(back_populates='user')
     branches: Mapped[list['UserBranch']] = relationship(back_populates='user')
+
 
 class UserDepartment(Base, CreateDateMixin):
     __tablename__ = 'user_department'
@@ -153,7 +161,7 @@ class FileStorage(Base, CreateDateMixin):
     __tablename__ = 'file_storage'
 
     name: Mapped[str] = mapped_column(String(250), nullable=False)
-    tz_examples: Mapped[list['TzExample']] = relationship('tz_example.id', back_populates='file')
+    tz_examples: Mapped[list['TzExample']] = relationship('TzExample', back_populates='file')
 
 
 class TzExample(Base, CreateDateMixin):
@@ -163,5 +171,5 @@ class TzExample(Base, CreateDateMixin):
     text: Mapped[str] = mapped_column(String(10000), nullable=True)
     file_id: Mapped[int] = mapped_column(ForeignKey('file_storage.id', ondelete='SET NULL'))
 
-    item: Mapped['Items'] = relationship('item.id', back_populates='tz_example')
-    file:Mapped['FileStorage'] = relationship('file_storage.id', back_populates='tz_examples')
+    item: Mapped['Items'] = relationship('Items', back_populates='tz_examples')
+    file:Mapped['FileStorage'] = relationship('FileStorage', back_populates='tz_examples')

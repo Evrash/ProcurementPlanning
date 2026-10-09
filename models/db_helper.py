@@ -1,4 +1,5 @@
 from typing import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import (
     AsyncSession, create_async_engine, async_sessionmaker, AsyncEngine)
 
@@ -6,7 +7,7 @@ from config import settings
 
 class DatabaseHelper:
     def __init__(self, db_url: str) -> None:
-        self.engine: AsyncEngine | None = create_async_engine(url=db_url)
+        self.engine: AsyncEngine | None = create_async_engine(url=db_url, echo=False)
         self.session_factory: async_sessionmaker[AsyncSession] | None = async_sessionmaker(
             bind=self.engine,
             autoflush=False,
